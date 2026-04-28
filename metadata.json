@@ -1,0 +1,6 @@
+{
+  "name": "Neon Cyberpunk Tetris",
+  "description": "HTML5 Canvas Tetris game with reactive touch controls, T-spins, and a synthwave/cyberpunk aesthetic.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
