@@ -328,11 +328,7 @@ export default function App() {
       },
 
       getNextBagPiece() {
-        if (this.bag.length === 0) {
-          this.bag = [1,2,3,4,5,6,7];
-          this.bag.sort(() => Math.random() - 0.5);
-        }
-        return this.bag.pop()!;
+        return Math.floor(Math.random() * 7) + 1;
       },
 
       spawnPiece(id?: number) {
@@ -547,7 +543,7 @@ export default function App() {
         if (linesCleared > 0) {
           this.lines += linesCleared;
           this.level = Math.floor(this.lines / 10) + 1;
-          this.dropInterval = Math.max(100, 800 - (this.level - 1) * 50);
+          this.dropInterval = Math.max(50, 800 * Math.pow(0.85, this.level - 1));
         }
       },
 
@@ -588,13 +584,11 @@ export default function App() {
         ctx.save();
         ctx.translate(x, y);
         if (isGhost) {
-          ctx.strokeStyle = color;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
           ctx.lineWidth = 2;
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = color;
+          ctx.shadowBlur = 0;
           ctx.strokeRect(2, 2, BLOCK_SIZE - 4, BLOCK_SIZE - 4);
-          ctx.fillStyle = color;
-          ctx.globalAlpha = 0.15;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
           ctx.fillRect(2, 2, BLOCK_SIZE - 4, BLOCK_SIZE - 4);
         } else {
           ctx.globalAlpha = alpha;
@@ -637,7 +631,11 @@ export default function App() {
         ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
         // Draw Board Background Grid
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+        // Fill game area background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        ctx.fillRect(BOARD_X, BOARD_Y, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE);
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
         ctx.lineWidth = 1;
         ctx.beginPath();
         for(let i=0; i<=COLS; i++) {
@@ -649,6 +647,11 @@ export default function App() {
            ctx.lineTo(BOARD_X + COLS * BLOCK_SIZE, BOARD_Y + i * BLOCK_SIZE);
         }
         ctx.stroke();
+
+        // Draw Game Area Border
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(BOARD_X, BOARD_Y, COLS * BLOCK_SIZE, ROWS * BLOCK_SIZE);
 
         // Draw Placed Blocks
         for (let y = 0; y < ROWS; y++) {
