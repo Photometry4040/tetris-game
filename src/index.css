@@ -4,3 +4,11 @@
 @theme {
   --font-sans: "Orbitron", ui-sans-serif, system-ui, sans-serif;
 }
+
+@keyframes achievement-slide-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.achievement-toast {
+  animation: achievement-slide-in 0.3s ease-out;
+}

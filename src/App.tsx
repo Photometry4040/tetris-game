@@ -33,6 +33,29 @@ const SHAPES = [
 
 const NAMES = ['', 'I', 'J', 'L', 'O', 'S', 'T', 'Z'];
 
+const loadHighscore = (): number => {
+  try { return parseInt(localStorage.getItem('neon-tetris-highscore') ?? '0', 10) || 0; }
+  catch { return 0; }
+};
+const loadAchievements = (): string[] => {
+  try { return JSON.parse(localStorage.getItem('neon-tetris-achievements') ?? '[]'); }
+  catch { return []; }
+};
+const ACHIEVEMENT_NAMES: Record<string, string> = {
+  first_tetris: '🔷 테트리스 달성',
+  first_tspin: '🌀 트위스터',
+  reach_level_5: '⚡ 속도광',
+  score_10k: '💎 만점 돌파',
+  combo_3: '🔥 연속기',
+  b2b: '⚔️ 백투백',
+};
+const LEVEL_BG_COLORS = [
+  '#0a1a3a','#0a1a3a','#0a1a3a',
+  '#1a0a3a','#1a0a3a','#1a0a3a',
+  '#3a1a0a','#3a1a0a','#3a1a0a',
+  '#1a1a1a',
+];
+
 class AudioController {
   ctx: AudioContext | null = null;
   bgmVolume: GainNode | null = null;
@@ -278,6 +301,14 @@ export default function App() {
   const [level, setLevel] = useState(1);
   const [lines, setLines] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [highscore, setHighscore] = useState<number>(() => loadHighscore());
+  const [pendingAchievement, setPendingAchievement] = useState<string | null>(null);
+  const [bgColor, setBgColor] = useState('#0a1a3a');
+  const [comboDisplay, setComboDisplay] = useState(0);
+  const [sessionStats, setSessionStats] = useState({ maxCombo: 0, tspinCount: 0, tetrisCount: 0, elapsed: '' });
+  const [isNewRecord, setIsNewRecord] = useState(false);
+  const highscoreRef = useRef<number>(loadHighscore());
+  const unlockedAchievementsRef = useRef<string[]>(loadAchievements());
 
   const toggleMute = () => {
     const nextMuted = !isMuted;
@@ -312,11 +343,13 @@ export default function App() {
       lockDelayTimer: 0,
       
       score: 0, level: 1, lines: 0, combo: -1, b2b: false, lastMoveRotate: false,
+      maxCombo: 0, tspinCount: 0, tetrisCount: 0, startTime: 0,
       state: 'menu' as 'menu' | 'playing' | 'paused' | 'gameover',
 
       init() {
         this.board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
         this.score = 0; this.level = 1; this.lines = 0; this.combo = -1; this.b2b = false;
+        this.maxCombo = 0; this.tspinCount = 0; this.tetrisCount = 0; this.startTime = Date.now();
         this.holdId = 0; this.canHold = true; this.nextQueue = []; this.bag = [];
         this.particles = []; this.texts = [];
         for (let i=0; i<5; i++) this.nextQueue.push(this.getNextBagPiece());
@@ -350,6 +383,7 @@ export default function App() {
         if (this.checkCollision(0, 0, this.piece.matrix)) {
           this.state = 'gameover';
           audioController.stopMusic();
+          onGameOver();
           setGameState('gameover');
         }
       },
@@ -540,11 +574,18 @@ export default function App() {
         }
 
         this.score += baseScore;
+        this.maxCombo = Math.max(this.maxCombo, this.combo > 0 ? this.combo : 0);
+        if (isTSpin && linesCleared > 0) this.tspinCount++;
+        if (isTetris) this.tetrisCount++;
         if (linesCleared > 0) {
           this.lines += linesCleared;
-          this.level = Math.floor(this.lines / 10) + 1;
+          const newLevel = Math.floor(this.lines / 10) + 1;
+          const didLevelUp = newLevel !== this.level;
+          this.level = newLevel;
           this.dropInterval = Math.max(50, 800 * Math.pow(0.85, this.level - 1));
+          if (didLevelUp) onLevelUp(this.level);
         }
+        onScoreUpdate(linesCleared, isTSpin, isTetris);
       },
 
       update(dt: number) {
@@ -706,8 +747,8 @@ export default function App() {
         }
 
         // Left Stats
-        ctx.fillRect(20, 160, 120, 240);
-        ctx.strokeRect(20, 160, 120, 240);
+        ctx.fillRect(20, 160, 120, 280);
+        ctx.strokeRect(20, 160, 120, 280);
 
         ctx.textAlign = 'left';
         ctx.fillStyle = '#ec4899'; // pink-500
@@ -735,6 +776,14 @@ export default function App() {
         ctx.font = '20px "JetBrains Mono", monospace';
         ctx.fillText(this.lines.toString(), 35, 395);
 
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.font = '12px Orbitron';
+        ctx.fillText('BEST', 35, 418);
+        const hs = highscoreRef.current;
+        ctx.fillStyle = hs > 0 && this.score >= hs ? '#0abdc6' : 'rgba(255,255,255,0.6)';
+        ctx.font = '16px "JetBrains Mono", monospace';
+        ctx.fillText(hs.toString().padStart(6, '0'), 35, 436);
+
         // Draw Particles & Texts
         ctx.textAlign = 'center';
         this.particles.forEach(p => p.draw(ctx));
@@ -748,6 +797,55 @@ export default function App() {
        setScore(engine.score);
        setLevel(engine.level);
        setLines(engine.lines);
+       setComboDisplay(Math.max(0, engine.combo));
+    };
+
+    const formatElapsed = (ms: number) => {
+      const s = Math.floor(ms / 1000);
+      return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    };
+
+    const checkAchievement = (id: string) => {
+      if (unlockedAchievementsRef.current.includes(id)) return;
+      const next = [...unlockedAchievementsRef.current, id];
+      unlockedAchievementsRef.current = next;
+      try { localStorage.setItem('neon-tetris-achievements', JSON.stringify(next)); } catch {}
+      setPendingAchievement(id);
+      setTimeout(() => setPendingAchievement(null), 2500);
+    };
+
+    const onScoreUpdate = (linesCleared: number, isTSpin: boolean, isTetris: boolean) => {
+      if (linesCleared === 4) checkAchievement('first_tetris');
+      if (isTSpin && linesCleared > 0) checkAchievement('first_tspin');
+      if (engine.combo >= 3) checkAchievement('combo_3');
+      if (engine.b2b) checkAchievement('b2b');
+      if (engine.score >= 10000) checkAchievement('score_10k');
+      setComboDisplay(Math.max(0, engine.combo));
+    };
+
+    const onLevelUp = (newLevel: number) => {
+      if (newLevel >= 5) checkAchievement('reach_level_5');
+      setBgColor(LEVEL_BG_COLORS[Math.min(newLevel - 1, 9)]);
+      engine.texts.push(new FloatingText(`LEVEL ${newLevel}`, BOARD_X + 160, BOARD_Y + 160, '#ffd300', 28));
+    };
+
+    const onGameOver = () => {
+      if (engine.score > 0 && engine.score > highscoreRef.current) {
+        highscoreRef.current = engine.score;
+        setHighscore(engine.score);
+        try { localStorage.setItem('neon-tetris-highscore', String(engine.score)); } catch {}
+        setIsNewRecord(true);
+        engine.texts.push(new FloatingText('✦ NEW RECORD ✦', BOARD_X + 160, BOARD_Y + 300, '#ffd300', 28));
+      } else {
+        setIsNewRecord(false);
+      }
+      setSessionStats({
+        maxCombo: engine.maxCombo,
+        tspinCount: engine.tspinCount,
+        tetrisCount: engine.tetrisCount,
+        elapsed: formatElapsed(Date.now() - engine.startTime),
+      });
+      setComboDisplay(0);
     };
 
     function gameLoop(time: number) {
@@ -770,28 +868,36 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       const eng = engineRef.current;
       if (!eng || eng.state !== 'playing') return;
-      
-      switch(e.code) {
-        case 'ArrowLeft': eng.move(-1, 0); break;
-        case 'ArrowRight': eng.move(1, 0); break;
-        case 'ArrowDown': eng.move(0, 1); eng.score += 1; syncReactUI(); break;
-        case 'ArrowUp': 
-        case 'KeyX': eng.rotate(); break;
-        case 'Space': eng.hardDrop(); break;
-        case 'KeyC': eng.hold(); break;
-        case 'KeyP': togglePause(); break;
+
+      // Match by both e.code (layout-independent) and e.key (some browsers/IMEs differ)
+      const code = e.code;
+      const key = e.key;
+      const isLeft = code === 'ArrowLeft' || key === 'ArrowLeft';
+      const isRight = code === 'ArrowRight' || key === 'ArrowRight';
+      const isUp = code === 'ArrowUp' || key === 'ArrowUp';
+      const isDown = code === 'ArrowDown' || key === 'ArrowDown';
+      const isSpace = code === 'Space' || key === ' ' || key === 'Spacebar';
+      const isX = code === 'KeyX' || key === 'x' || key === 'X';
+      const isC = code === 'KeyC' || key === 'c' || key === 'C';
+      const isP = code === 'KeyP' || key === 'p' || key === 'P';
+
+      if (isLeft || isRight || isUp || isDown || isSpace || isX || isC || isP) {
+        e.preventDefault();
       }
+
+      if (isLeft) eng.move(-1, 0);
+      else if (isRight) eng.move(1, 0);
+      else if (isDown) { eng.move(0, 1); eng.score += 1; syncReactUI(); }
+      else if (isUp || isX) eng.rotate();
+      else if (isSpace) eng.hardDrop();
+      else if (isC) eng.hold();
+      else if (isP) togglePause();
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      // Could implement soft drop reset if we modified dropInterval directly
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
+    // Use capture phase so we beat any deeper handler that might call stopPropagation
+    window.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('keydown', handleKeyDown, true);
     };
   }, []);
 
@@ -806,6 +912,10 @@ export default function App() {
   const startGame = () => {
      if(engineRef.current) engineRef.current.init();
      setGameState('playing');
+     setIsNewRecord(false);
+     setComboDisplay(0);
+     setBgColor('#0a1a3a');
+     setSessionStats({ maxCombo: 0, tspinCount: 0, tetrisCount: 0, elapsed: '' });
   };
 
   const togglePause = () => {
@@ -868,7 +978,10 @@ export default function App() {
     <div className="relative w-full h-screen bg-[#020205] text-[#e0e0ff] flex flex-col items-center justify-center overflow-hidden font-sans select-none touch-none">
       
       {/* Dynamic Background Glow */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1a1a3a_0%,#020205_100%)] opacity-50 pointer-events-none" />
+      <div
+        className="absolute inset-0 opacity-50 pointer-events-none"
+        style={{ background: `radial-gradient(circle at 50% 50%, ${bgColor} 0%, #020205 100%)`, transition: 'background 1s ease' }}
+      />
 
       {/* Main Game Container */}
       <div 
@@ -878,12 +991,30 @@ export default function App() {
          onTouchEnd={handleTouchEnd}
       >
         <div className="relative p-1 bg-white/5 border border-white/20 rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full aspect-square md:w-auto md:h-full flex items-center justify-center">
-            <canvas 
-               ref={canvasRef} 
-               width={CANVAS_W} 
-               height={CANVAS_H} 
+            <canvas
+               ref={canvasRef}
+               width={CANVAS_W}
+               height={CANVAS_H}
                className="bg-[#05050a] block w-full h-full object-contain rounded"
             />
+
+            {/* Combo HUD */}
+            {comboDisplay > 0 && gameState === 'playing' && (
+              <div className={`absolute bottom-8 right-3 text-right font-mono text-sm leading-tight pointer-events-none
+                ${comboDisplay >= 5 ? 'text-pink-400' : comboDisplay >= 3 ? 'text-cyan-400' : 'text-white/70'}`}>
+                <div className="text-[10px] uppercase tracking-widest">COMBO</div>
+                <div className="text-2xl font-bold">×{comboDisplay}</div>
+              </div>
+            )}
+
+            {/* Achievement Toast */}
+            {pendingAchievement && (
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 pointer-events-none achievement-toast
+                bg-black/90 border border-cyan-400/60 px-4 py-2 rounded-full
+                text-cyan-400 text-xs font-bold whitespace-nowrap">
+                {ACHIEVEMENT_NAMES[pendingAchievement]}
+              </div>
+            )}
 
             {/* DOM Overlays */}
         {gameState === 'menu' && (
@@ -916,10 +1047,19 @@ export default function App() {
 
         {gameState === 'gameover' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-lg z-20">
-            <h2 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500 mb-4 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]">SYSTEM FAILURE</h2>
-            <div className="text-center mb-8 uppercase text-[10px] tracking-widest text-white/50">
-               <p className="text-xl mb-2 text-white">FINAL SCORE: <span className="font-bold text-pink-500">{score}</span></p>
-               <p className="">LEVEL REACHED: {level}</p>
+            <h2 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-pink-500 mb-2 drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]">SYSTEM FAILURE</h2>
+            {isNewRecord && (
+              <p className="text-yellow-400 text-xs font-bold tracking-widest uppercase mb-3 animate-pulse">★ NEW RECORD ★</p>
+            )}
+            <div className="text-center mb-4 uppercase text-[10px] tracking-widest text-white/50">
+               <p className="text-xl mb-1 text-white">FINAL SCORE: <span className="font-bold text-pink-500">{score}</span></p>
+               <p>LEVEL REACHED: {level}</p>
+            </div>
+            <div className="mb-5 grid grid-cols-2 gap-x-8 gap-y-1 text-[10px] uppercase tracking-widest text-white/40">
+              <span className="text-right">최고 콤보</span><span className="text-cyan-400">{sessionStats.maxCombo}</span>
+              <span className="text-right">T-Spin</span><span className="text-cyan-400">{sessionStats.tspinCount}회</span>
+              <span className="text-right">테트리스</span><span className="text-cyan-400">{sessionStats.tetrisCount}회</span>
+              <span className="text-right">플레이 시간</span><span className="text-cyan-400">{sessionStats.elapsed}</span>
             </div>
             <button onClick={startGame} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-pink-500 transition-colors uppercase tracking-widest flex items-center gap-2">
               <RotateCcw size={16} /> REBOOT SYSTEM
