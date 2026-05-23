@@ -994,14 +994,15 @@ function SinglePlayerGame({ onStart2P }: { onStart2P: () => void }) {
         style={{ background: `radial-gradient(circle at 50% 50%, ${bgColor} 0%, #020205 100%)`, transition: 'background 1s ease' }}
       />
 
-      {/* Main Game Container */}
-      <div 
-         className="relative z-10 p-2 md:p-6 w-[96vw] max-w-[640px] md:w-auto md:h-[680px] bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl md:rounded-3xl shadow-2xl flex justify-center"
+      {/* Main Game Container — square, fills the smaller of vw/vh */}
+      <div
+         className="relative z-10 p-2 bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl md:rounded-3xl shadow-2xl flex justify-center"
+         style={{ width: 'min(96vw, 96vh)', height: 'min(96vw, 96vh)' }}
          onTouchStart={handleTouchStart}
          onTouchMove={handleTouchMove}
          onTouchEnd={handleTouchEnd}
       >
-        <div className="relative p-1 bg-white/5 border border-white/20 rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full aspect-square md:w-auto md:h-full flex items-center justify-center">
+        <div className="relative p-1 bg-white/5 border border-white/20 rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full h-full flex items-center justify-center">
             <canvas
                ref={canvasRef}
                width={CANVAS_W}

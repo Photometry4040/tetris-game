@@ -588,6 +588,17 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
   const gameStateRef = useRef<'playing' | 'paused' | 'gameover'>('playing');
   const [winner, setWinner] = useState<1 | 2 | null>(null);
   const [isPaused, setIsPaused] = useState(false);
+  const [displaySize, setDisplaySize] = useState({ w: CANVAS_W, h: CANVAS_H });
+
+  useEffect(() => {
+    const updateSize = () => {
+      const ratio = Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H);
+      setDisplaySize({ w: Math.floor(CANVAS_W * ratio), h: Math.floor(CANVAS_H * ratio) });
+    };
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -724,17 +735,18 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
   };
 
   return (
-    <div className="relative w-full h-screen bg-[#020205] text-[#e0e0ff] flex flex-col items-center justify-center overflow-hidden select-none">
+    <div className="w-screen h-screen bg-[#020205] text-[#e0e0ff] flex items-center justify-center overflow-hidden select-none relative">
       {/* Glow background */}
       <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ background: 'radial-gradient(circle at 50% 50%, #0a1a3a 0%, #020205 70%)' }} />
 
-      <div className="relative z-10 bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-3">
+      {/* Canvas wrapper — size matches displayed canvas so overlays align */}
+      <div className="relative z-10" style={{ width: displaySize.w, height: displaySize.h }}>
         <canvas
           ref={canvasRef}
           width={CANVAS_W}
           height={CANVAS_H}
           className="block rounded"
-          style={{ maxWidth: '96vw', maxHeight: '85vh', objectFit: 'contain' }}
+          style={{ width: displaySize.w, height: displaySize.h }}
         />
 
         {/* Paused overlay */}
@@ -785,7 +797,7 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
             </div>
           </div>
         )}
-      </div>
+      </div>{/* end canvas wrapper */}
 
       {/* Top right exit */}
       <button
