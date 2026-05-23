@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Play, Pause, RotateCcw, ArrowLeft, ArrowRight, ArrowDown, Volume2, VolumeX } from 'lucide-react';
+import TwoPlayerGame from './TwoPlayerGame';
 
 const COLS = 10;
 const ROWS = 20;
@@ -295,6 +296,16 @@ class FloatingText {
 type Piece = { matrix: number[][]; x: number; y: number; id: number; name: string };
 
 export default function App() {
+  const [gameMode, setGameMode] = useState<'1p' | '2p' | null>(null);
+
+  if (gameMode === '2p') {
+    return <TwoPlayerGame onExit={() => setGameMode(null)} />;
+  }
+
+  return <SinglePlayerGame onStart2P={() => setGameMode('2p')} />;
+}
+
+function SinglePlayerGame({ onStart2P }: { onStart2P: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gameState, setGameState] = useState<'menu' | 'playing' | 'paused' | 'gameover'>('menu');
   const [score, setScore] = useState(0);
@@ -1021,10 +1032,15 @@ export default function App() {
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md rounded-lg z-20">
             <h1 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-white to-pink-500 mb-8">NEON TETRIS</h1>
             <p className="text-white/50 mb-8 tracking-widest text-sm uppercase">Neon Protocol</p>
-            <button onClick={startGame} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-cyan-400 transition-colors uppercase tracking-widest">
-              START GAME
-            </button>
-            
+            <div className="flex gap-4 mb-2">
+              <button onClick={startGame} className="px-8 py-3 bg-white text-black font-bold rounded-full hover:bg-cyan-400 transition-colors uppercase tracking-widest">
+                1 PLAYER
+              </button>
+              <button onClick={onStart2P} className="px-8 py-3 bg-transparent border-2 border-orange-400 text-orange-400 font-bold rounded-full hover:bg-orange-400 hover:text-black transition-colors uppercase tracking-widest">
+                2 PLAYERS
+              </button>
+            </div>
+
             <div className="mt-8 grid grid-cols-2 gap-x-6 gap-y-2 text-[10px] text-white/50 uppercase">
               <div className="text-right">Move</div><div className="text-cyan-400">Arrow Keys</div>
               <div className="text-right">Soft Drop</div><div className="text-cyan-400">Arrow Down</div>

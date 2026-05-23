@@ -6,6 +6,7 @@ Built with React 19, Vite, TypeScript, and Tailwind v4.
 
 ## Features
 
+- **2-Player Local Battle** — same keyboard split-screen; garbage-line attack with official Tetris rules (B2B, T-Spin, combo bonus)
 - T-Spin detection with back-to-back bonus
 - Hold piece, ghost piece, 7-bag randomization
 - Procedural WebAudio BGM (D minor pentatonic, 125 BPM) — no audio files
@@ -52,11 +53,40 @@ netlify deploy --build --prod    # production
 
 ## Controls
 
-- ← / → : move
-- ↓ : soft drop
-- ↑ / X : rotate
-- Space : hard drop
-- C : hold piece
-- P : pause
+### 1 Player
 
-On-screen / touch controls are also available.
+| Action | Key |
+|--------|-----|
+| Move | ← / → |
+| Soft drop | ↓ |
+| Rotate | ↑ / X |
+| Hard drop | Space |
+| Hold | C |
+| Pause | P |
+
+Touch / on-screen controls also available.
+
+### 2 Players (same keyboard)
+
+| Action | Player 1 | Player 2 |
+|--------|----------|----------|
+| Move | ← / → | A / D |
+| Soft drop | ↓ | S |
+| Rotate | ↑ | W |
+| Hard drop | Space | Left Shift |
+| Hold | C | Q |
+| Pause (both) | P / Esc | P / Esc |
+
+### 2-Player Attack Rules (Tetris Guideline)
+
+| Clear | Lines sent |
+|-------|-----------|
+| Single | 0 |
+| Double | 1 |
+| Triple | 2 |
+| Tetris | 4 |
+| T-Spin Single | 2 |
+| T-Spin Double | 4 |
+| T-Spin Triple | 6 |
+| Back-to-Back bonus | +1 |
+| Combo | varies |
