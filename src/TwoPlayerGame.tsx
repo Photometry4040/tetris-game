@@ -434,10 +434,10 @@ function drawSidePanelLeft(ctx: CanvasRenderingContext2D, eng: Engine) {
   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
   ctx.fillRect(panelX, BOARD_Y + 80, 95, 150);
   ctx.strokeRect(panelX, BOARD_Y + 80, 95, 150);
-  ctx.fillStyle = '#ec4899';
+  ctx.fillStyle = '#f97316';
   ctx.font = 'bold 9px Orbitron, monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('PLAYER 1', panelX + 47, BOARD_Y + 96);
+  ctx.fillText('PLAYER 2', panelX + 47, BOARD_Y + 96);
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '8px Orbitron, monospace';
@@ -462,8 +462,8 @@ function drawSidePanelLeft(ctx: CanvasRenderingContext2D, eng: Engine) {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '8px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('← ↑ → ↓', panelX + 47, BOARD_Y + 250);
-  ctx.fillText('SPACE=Drop C=Hold', panelX + 47, BOARD_Y + 263);
+  ctx.fillText('A W D S', panelX + 47, BOARD_Y + 250);
+  ctx.fillText('LShift=Drop Q=Hold', panelX + 47, BOARD_Y + 263);
 }
 
 function drawSidePanelRight(ctx: CanvasRenderingContext2D, eng: Engine) {
@@ -487,10 +487,10 @@ function drawSidePanelRight(ctx: CanvasRenderingContext2D, eng: Engine) {
   ctx.strokeStyle = 'rgba(255,255,255,0.1)';
   ctx.fillRect(panelX, BOARD_Y + 210, 95, 150);
   ctx.strokeRect(panelX, BOARD_Y + 210, 95, 150);
-  ctx.fillStyle = '#f97316';
+  ctx.fillStyle = '#ec4899';
   ctx.font = 'bold 9px Orbitron, monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('PLAYER 2', panelX + 47, BOARD_Y + 226);
+  ctx.fillText('PLAYER 1', panelX + 47, BOARD_Y + 226);
   ctx.textAlign = 'left';
   ctx.fillStyle = 'rgba(255,255,255,0.4)';
   ctx.font = '8px Orbitron, monospace';
@@ -515,8 +515,8 @@ function drawSidePanelRight(ctx: CanvasRenderingContext2D, eng: Engine) {
   ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.font = '8px monospace';
   ctx.textAlign = 'center';
-  ctx.fillText('A W D S', panelX + 47, BOARD_Y + 380);
-  ctx.fillText('LShift=Drop Q=Hold', panelX + 47, BOARD_Y + 393);
+  ctx.fillText('← ↑ → ↓', panelX + 47, BOARD_Y + 380);
+  ctx.fillText('SPACE=Drop C=Hold', panelX + 47, BOARD_Y + 393);
 }
 
 // Next queue for P1 is right of P1 board; hold for P2 is left of P2 board
@@ -597,15 +597,16 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
     let rafId: number;
     let lastTime = performance.now();
 
+    // eng1 = left board = P2(WASD), eng2 = right board = P1(Arrow)
     const handleGameOver1 = () => {
       if (gameStateRef.current === 'gameover') return;
       gameStateRef.current = 'gameover';
-      setWinner(2);
+      setWinner(1); // P2 died → P1 wins
     };
     const handleGameOver2 = () => {
       if (gameStateRef.current === 'gameover') return;
       gameStateRef.current = 'gameover';
-      setWinner(1);
+      setWinner(2); // P1 died → P2 wins
     };
 
     const eng1 = createEngine(P1_BOARD_X, handleGameOver1, (lines) => {
@@ -630,10 +631,10 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
       // Player labels
       ctx.font = 'bold 11px Orbitron, monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#ec4899';
-      ctx.fillText('P1', P1_BOARD_X + BOARD_W / 2, BOARD_Y - 10);
       ctx.fillStyle = '#f97316';
-      ctx.fillText('P2', P2_BOARD_X + BOARD_W / 2, BOARD_Y - 10);
+      ctx.fillText('P2', P1_BOARD_X + BOARD_W / 2, BOARD_Y - 10);
+      ctx.fillStyle = '#ec4899';
+      ctx.fillText('P1', P2_BOARD_X + BOARD_W / 2, BOARD_Y - 10);
 
       drawBoard(ctx, eng1, P1_BOARD_X);
       drawBoard(ctx, eng2, P2_BOARD_X);
@@ -690,21 +691,21 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
 
       if (!eng1 || !eng2) return;
 
-      // P1
-      if (e.code === 'ArrowLeft') eng1.move(-1, 0);
-      else if (e.code === 'ArrowRight') eng1.move(1, 0);
-      else if (e.code === 'ArrowDown') { eng1.move(0, 1); eng1.score += 1; }
-      else if (e.code === 'ArrowUp' || e.code === 'KeyX') eng1.rotate();
-      else if (e.code === 'Space') eng1.hardDrop();
-      else if (e.code === 'KeyC') eng1.hold();
+      // P2: WASD → left board (eng1) — WASD is on the LEFT side of keyboard
+      if (e.code === 'KeyA') eng1.move(-1, 0);
+      else if (e.code === 'KeyD') eng1.move(1, 0);
+      else if (e.code === 'KeyS') { eng1.move(0, 1); eng1.score += 1; }
+      else if (e.code === 'KeyW') eng1.rotate();
+      else if (e.code === 'ShiftLeft') { e.preventDefault(); eng1.hardDrop(); }
+      else if (e.code === 'KeyQ') eng1.hold();
 
-      // P2
-      else if (e.code === 'KeyA') eng2.move(-1, 0);
-      else if (e.code === 'KeyD') eng2.move(1, 0);
-      else if (e.code === 'KeyS') { eng2.move(0, 1); eng2.score += 1; }
-      else if (e.code === 'KeyW') eng2.rotate();
-      else if (e.code === 'ShiftLeft') { e.preventDefault(); eng2.hardDrop(); }
-      else if (e.code === 'KeyQ') eng2.hold();
+      // P1: Arrow keys → right board (eng2) — Arrow keys are on the RIGHT side of keyboard
+      else if (e.code === 'ArrowLeft') eng2.move(-1, 0);
+      else if (e.code === 'ArrowRight') eng2.move(1, 0);
+      else if (e.code === 'ArrowDown') { eng2.move(0, 1); eng2.score += 1; }
+      else if (e.code === 'ArrowUp' || e.code === 'KeyX') eng2.rotate();
+      else if (e.code === 'Space') eng2.hardDrop();
+      else if (e.code === 'KeyC') eng2.hold();
     };
 
     window.addEventListener('keydown', onKey, true);
@@ -766,7 +767,7 @@ export default function TwoPlayerGame({ onExit }: { onExit: () => void }) {
               P{winner} WINS!
             </div>
             <p className="text-white/40 text-sm mb-8 uppercase tracking-widest">
-              {winner === 1 ? 'Player 2 stack overflow' : 'Player 1 stack overflow'}
+              {winner === 1 ? 'Player 1 stack overflow' : 'Player 2 stack overflow'}
             </p>
             <div className="flex gap-4">
               <button
