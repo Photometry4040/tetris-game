@@ -3,6 +3,7 @@
 HTML5 Canvas Tetris with synthwave/cyberpunk aesthetic, T-spins, reactive touch controls, and a procedurally synthesized WebAudio bassline.
 
 Built with React 19, Vite, TypeScript, and Tailwind v4.
+<img width="1250" height="729" alt="image" src="https://github.com/user-attachments/assets/cda2a32e-4af3-487d-a8e3-9418cd6a6c01" />
 
 ## Features
 
